@@ -76,8 +76,8 @@ export default function Login() {
         {/* Background Image - Portal/Logistics Theme */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=2070&auto=format&fit=crop" 
-            alt="Logistics Portal" 
+            src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?q=80&w=2070&auto=format&fit=crop" 
+            alt="Logística Local y Reparto" 
             className="w-full h-full object-cover grayscale-[0.2] brightness-[0.8] contrast-[1.1] hover:scale-105 transition-transform duration-[10000ms] ease-out" 
             referrerPolicy="no-referrer"
           />
