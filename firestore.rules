@@ -65,6 +65,7 @@ service cloud.firestore {
              (!('documents' in data) || data.documents is list) &&
              (!('mapsLink' in data) || data.mapsLink is string) &&
              (!('coordinates' in data) || (data.coordinates is map && data.coordinates.lat is number && data.coordinates.lng is number)) &&
+             (!('cancelReason' in data) || data.cancelReason is string) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
     }

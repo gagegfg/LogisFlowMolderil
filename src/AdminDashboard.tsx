@@ -3,7 +3,7 @@ import { db } from './firebase';
 import { collection, query, onSnapshot, orderBy, updateDoc, doc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck } from 'lucide-react';
+import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck, Filter, HelpCircle, X } from 'lucide-react';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
@@ -12,6 +12,13 @@ const formatCurrency = (amount: number) => {
 export default function AdminDashboard({ activeTab }: { activeTab: string }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<any[]>([]);
+  
+  // Filters
+  const [filterDate, setFilterDate] = useState('');
+  const [filterUser, setFilterUser] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     const q = query(
@@ -24,13 +31,20 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const qUsers = query(collection(db, 'users'));
+    const unsubUsers = onSnapshot(qUsers, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+
+    return () => {
+      unsubscribe();
+      unsubUsers();
+    };
   }, []);
 
-  const handleCancelOrder = async (orderId: string) => {
+  const handleCancelOrder = async (orderId: string, reason: string) => {
     try {
       await updateDoc(doc(db, 'orders', orderId), {
         status: 'cancelled',
+        cancelReason: reason,
         updatedAt: serverTimestamp()
       });
     } catch (error) {
@@ -38,11 +52,18 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
     }
   };
 
+  const filteredOrders = orders.filter(o => {
+    if (filterDate && !o.date.startsWith(filterDate)) return false;
+    if (filterUser && o.requesterId !== filterUser) return false;
+    if (filterPriority && o.priority !== filterPriority) return false;
+    return true;
+  });
+
   const stats = {
-    total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    inTransit: orders.filter(o => o.status === 'in_transit').length,
-    completed: orders.filter(o => o.status === 'completed').length,
+    total: filteredOrders.length,
+    pending: filteredOrders.filter(o => o.status === 'pending').length,
+    inTransit: filteredOrders.filter(o => o.status === 'in_transit').length,
+    completed: filteredOrders.filter(o => o.status === 'completed').length,
   };
 
   if (activeTab === 'users') {
@@ -54,13 +75,74 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
   }
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-3xl font-extrabold font-headline text-white">Control Global de Flota</h2>
+    <div className="space-y-8 relative">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-extrabold font-headline text-white">Control Global de Flota</h2>
+        <button 
+          onClick={() => setShowHelp(true)}
+          className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
+          title="Ayuda"
+        >
+          <HelpCircle className="w-6 h-6" />
+        </button>
+      </div>
       
+      {/* Filters */}
+      <div className="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-end">
+        <div className="flex items-center gap-2 text-on-surface-variant mb-1 w-full">
+          <Filter className="w-4 h-4" />
+          <span className="text-xs font-bold uppercase tracking-widest">Filtros</span>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant block mb-1">Fecha</label>
+          <input 
+            type="date" 
+            className="w-full px-3 py-2 glass-input text-white rounded-lg text-sm"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant block mb-1">Usuario Solicitante</label>
+          <select 
+            className="w-full px-3 py-2 glass-input text-white rounded-lg text-sm appearance-none"
+            value={filterUser}
+            onChange={e => setFilterUser(e.target.value)}
+          >
+            <option value="">Todos los usuarios</option>
+            {users.filter(u => u.role === 'requester').map(u => (
+              <option key={u.id} value={u.id}>{u.displayName}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant block mb-1">Importancia</label>
+          <select 
+            className="w-full px-3 py-2 glass-input text-white rounded-lg text-sm appearance-none"
+            value={filterPriority}
+            onChange={e => setFilterPriority(e.target.value)}
+          >
+            <option value="">Todas</option>
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+            <option value="urgent">Urgente</option>
+          </select>
+        </div>
+        {(filterDate || filterUser || filterPriority) && (
+          <button 
+            onClick={() => { setFilterDate(''); setFilterUser(''); setFilterPriority(''); }}
+            className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-error border border-error/30 hover:bg-error/10 transition-all h-[38px]"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
       {/* Stats / Bento highlight */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass-panel rounded-xl p-6">
-          <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-2">Total Pedidos</p>
+          <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-2">Total Filtrados</p>
           <p className="text-3xl font-extrabold text-white">{stats.total}</p>
         </div>
         <div className="glass-panel rounded-xl p-6">
@@ -78,27 +160,54 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-xl font-bold text-white">Todos los Envíos</h3>
+        <h3 className="text-xl font-bold text-white">Envíos</h3>
         {loading ? (
           <div className="text-primary">Cargando pedidos...</div>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="glass-panel p-12 text-center rounded-xl">
             <Package className="w-12 h-12 text-on-surface-variant mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No se encontraron pedidos</h3>
+            <p className="text-on-surface-variant">Prueba ajustando los filtros.</p>
           </div>
         ) : (
           <div className="grid gap-4">
-            {orders.map(order => (
-              <AdminOrderCard key={order.id} order={order} onCancel={() => handleCancelOrder(order.id)} />
+            {filteredOrders.map(order => (
+              <AdminOrderCard key={order.id} order={order} onCancel={handleCancelOrder} />
             ))}
           </div>
         )}
       </div>
+
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-panel p-8 rounded-xl max-w-2xl w-full relative">
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-extrabold font-headline text-white mb-6 flex items-center gap-3">
+              <HelpCircle className="w-8 h-8 text-primary" />
+              Ayuda: Control Global de Flota
+            </h2>
+            <div className="space-y-4 text-on-surface-variant text-sm leading-relaxed">
+              <p><strong>Filtros:</strong> Utiliza la barra superior para buscar pedidos específicos por fecha, usuario solicitante o nivel de importancia. Las estadísticas se actualizarán automáticamente.</p>
+              <p><strong>Planificación:</strong> Revisa los pedidos "Pendientes". Los choferes verán estos pedidos en su panel y podrán aceptarlos. Una vez aceptados, pasarán a "En Tránsito".</p>
+              <p><strong>Cancelación de Pedidos:</strong> Si necesitas anular o rechazar un pedido, haz clic en el botón "Cancelar". Se te pedirá que ingreses un motivo. Este motivo será visible inmediatamente para el usuario solicitante en su panel.</p>
+              <p><strong>Geolocalización:</strong> Si el solicitante adjuntó coordenadas o un enlace de Google Maps, verás los botones correspondientes en la tarjeta del pedido para abrir la ubicación exacta.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const AdminOrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCancel }) => {
+const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: string) => void }> = ({ order, onCancel }) => {
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
   const statusColors: Record<string, string> = {
     pending: 'text-tertiary border-tertiary/30 bg-tertiary/10',
     assigned: 'text-primary border-primary/30 bg-primary/10',
@@ -120,66 +229,112 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order,
     delivery: 'Envío'
   };
 
-  return (
-    <div className="glass-panel p-6 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between md:items-start gap-4">
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
-          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status]}`}>
-            {statusLabels[order.status]}
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            {typeLabels[order.type]}
-          </span>
-          {order.priority === 'urgent' && (
-            <span className="text-[10px] font-bold uppercase tracking-widest text-error flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> Urgente
-            </span>
-          )}
-        </div>
-        <h3 className="text-lg font-bold text-white">{order.location}</h3>
-        
-        <div className="flex flex-wrap gap-4 mt-2 mb-3">
-          {order.mapsLink && (
-            <a href={order.mapsLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
-              <Navigation className="w-3 h-3" /> Ver en Maps
-            </a>
-          )}
-          {order.coordinates && (
-            <a href={`https://www.google.com/maps/search/?api=1&query=${order.coordinates.lat},${order.coordinates.lng}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
-              <MapPin className="w-3 h-3" /> Coordenadas GPS
-            </a>
-          )}
-        </div>
+  const handleConfirmCancel = () => {
+    if (!cancelReason.trim()) return;
+    onCancel(order.id, cancelReason);
+    setShowCancelModal(false);
+  };
 
-        <div className="flex flex-wrap gap-4 mt-3">
-          <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-            <Calendar className="w-3 h-3 text-primary/70" />
-            <span>{order.date ? format(new Date(order.date), "dd 'de' MMM, HH:mm 'hs'", { locale: es }) : 'N/A'}</span>
+  return (
+    <>
+      <div className="glass-panel p-6 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between md:items-start gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status]}`}>
+              {statusLabels[order.status]}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+              {typeLabels[order.type]}
+            </span>
+            {order.priority === 'urgent' && (
+              <span className="text-[10px] font-bold uppercase tracking-widest text-error flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Urgente
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-            <MapPin className="w-3 h-3 text-primary/70" />
-            <span>{order.contactPerson}</span>
+          <h3 className="text-lg font-bold text-white">{order.location}</h3>
+          
+          <div className="flex flex-wrap gap-4 mt-2 mb-3">
+            {order.mapsLink && (
+              <a href={order.mapsLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
+                <Navigation className="w-3 h-3" /> Ver en Maps
+              </a>
+            )}
+            {order.coordinates && (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${order.coordinates.lat},${order.coordinates.lng}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
+                <MapPin className="w-3 h-3" /> Coordenadas GPS
+              </a>
+            )}
           </div>
-          {order.requiresCashPayment && (
+
+          <div className="flex flex-wrap gap-4 mt-3">
             <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-              <DollarSign className="w-3 h-3 text-primary/70" />
-              <span>{formatCurrency(order.cashAmount)}</span>
+              <Calendar className="w-3 h-3 text-primary/70" />
+              <span>{order.date ? format(new Date(order.date), "dd 'de' MMM, HH:mm 'hs'", { locale: es }) : 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+              <MapPin className="w-3 h-3 text-primary/70" />
+              <span>{order.contactPerson}</span>
+            </div>
+            {order.requiresCashPayment && (
+              <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                <DollarSign className="w-3 h-3 text-primary/70" />
+                <span>{formatCurrency(order.cashAmount)}</span>
+              </div>
+            )}
+          </div>
+          
+          {order.status === 'cancelled' && order.cancelReason && (
+            <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+              <strong>Motivo de cancelación:</strong> {order.cancelReason}
             </div>
           )}
         </div>
+        
+        <div className="flex items-center gap-3">
+          {order.status !== 'cancelled' && order.status !== 'completed' && (
+            <button 
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest text-error border border-error/30 hover:bg-error/10 transition-all"
+            >
+              Cancelar Pedido
+            </button>
+          )}
+        </div>
       </div>
-      
-      <div className="flex items-center gap-3">
-        {order.status !== 'cancelled' && order.status !== 'completed' && (
-          <button 
-            onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest text-error border border-error/30 hover:bg-error/10 transition-all"
-          >
-            Cancelar
-          </button>
-        )}
-      </div>
-    </div>
+
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-panel p-6 rounded-xl max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Cancelar Pedido</h3>
+            <p className="text-sm text-on-surface-variant mb-4">
+              Por favor, indica el motivo de la cancelación. El solicitante será notificado.
+            </p>
+            <textarea 
+              className="w-full px-4 py-3 glass-input text-white rounded-lg mb-4 resize-none h-24"
+              placeholder="Ej. Falta de disponibilidad de vehículos, dirección incorrecta..."
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowCancelModal(false)}
+                className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-white transition-colors"
+              >
+                Volver
+              </button>
+              <button 
+                onClick={handleConfirmCancel}
+                disabled={!cancelReason.trim()}
+                className="bg-error text-white px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+              >
+                Confirmar Cancelación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -217,6 +372,11 @@ function AdminUsersManager() {
                 {user.role === 'admin' && (
                   <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border text-primary border-primary/30 bg-primary/10">
                     Admin
+                  </span>
+                )}
+                {user.role === 'rejected' && (
+                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border text-error border-error/30 bg-error/10">
+                    Rechazado
                   </span>
                 )}
               </div>

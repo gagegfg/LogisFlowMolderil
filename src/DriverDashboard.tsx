@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp, 
 import { useAuth } from './AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MapPin, Calendar, DollarSign, Navigation, AlertCircle } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, Navigation, AlertCircle, HelpCircle, X } from 'lucide-react';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
@@ -15,6 +15,7 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
   const [availableOrders, setAvailableOrders] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -74,8 +75,17 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
 
   if (activeTab === 'orders') {
     return (
-      <div className="space-y-6">
-        <h2 className="text-3xl font-extrabold font-headline text-white">Mis Entregas</h2>
+      <div className="space-y-6 relative">
+        <div className="flex justify-between items-center">
+          <h2 className="text-3xl font-extrabold font-headline text-white">Mis Entregas</h2>
+          <button 
+            onClick={() => setShowHelp(true)}
+            className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
+            title="Ayuda"
+          >
+            <HelpCircle className="w-6 h-6" />
+          </button>
+        </div>
         {myOrders.length === 0 ? (
           <div className="glass-panel p-12 text-center rounded-xl">
             <h3 className="text-xl font-bold text-white mb-2">No hay entregas activas</h3>
@@ -93,13 +103,23 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
             ))}
           </div>
         )}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-extrabold font-headline text-white">Pedidos Disponibles</h2>
+    <div className="space-y-6 relative">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-extrabold font-headline text-white">Pedidos Disponibles</h2>
+        <button 
+          onClick={() => setShowHelp(true)}
+          className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
+          title="Ayuda"
+        >
+          <HelpCircle className="w-6 h-6" />
+        </button>
+      </div>
       {loading ? (
         <div className="text-primary">Cargando pedidos...</div>
       ) : availableOrders.length === 0 ? (
@@ -119,9 +139,33 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
           ))}
         </div>
       )}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>
   );
 }
+
+const HelpModal = ({ onClose }: { onClose: () => void }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="glass-panel p-8 rounded-xl max-w-2xl w-full relative">
+      <button 
+        onClick={onClose}
+        className="absolute top-4 right-4 text-on-surface-variant hover:text-white"
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <h2 className="text-2xl font-extrabold font-headline text-white mb-6 flex items-center gap-3">
+        <HelpCircle className="w-8 h-8 text-primary" />
+        Ayuda: Panel de Chofer
+      </h2>
+      <div className="space-y-4 text-on-surface-variant text-sm leading-relaxed">
+        <p><strong>Pedidos Disponibles (Resumen):</strong> Aquí verás todos los pedidos que están pendientes de ser tomados por un chofer. Puedes revisar la dirección, fecha y si requiere cobrar en efectivo. Haz clic en "Aceptar Pedido" para asignártelo.</p>
+        <p><strong>Mis Entregas:</strong> Una vez que aceptas un pedido, aparecerá aquí. Desde esta pestaña debes actualizar el estado del viaje.</p>
+        <p><strong>Estados del Viaje:</strong> Cuando estés en camino al destino, haz clic en "Iniciar Viaje" (En Tránsito). Una vez que hayas entregado/retirado el paquete, haz clic en "Marcar Completado".</p>
+        <p><strong>Navegación:</strong> Usa los botones "Ver en Maps" o "Coordenadas GPS" para abrir la ubicación directamente en Google Maps en tu celular.</p>
+      </div>
+    </div>
+  </div>
+);
 
 const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateStatus?: (status: string) => void, isAssigned: boolean }> = ({ order, onAccept, onUpdateStatus, isAssigned }) => {
   const statusColors: Record<string, string> = {

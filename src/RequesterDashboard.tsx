@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTim
 import { useAuth } from './AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Package, MapPin, Calendar, AlertCircle, FileText, DollarSign, XCircle, Navigation } from 'lucide-react';
+import { Package, MapPin, Calendar, AlertCircle, FileText, DollarSign, XCircle, Navigation, HelpCircle, X } from 'lucide-react';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
@@ -14,6 +14,7 @@ export default function RequesterDashboard({ activeTab, setActiveTab }: { active
   const { profile } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -39,6 +40,7 @@ export default function RequesterDashboard({ activeTab, setActiveTab }: { active
     try {
       await updateDoc(doc(db, 'orders', orderId), {
         status: 'cancelled',
+        cancelReason: 'Cancelado por el solicitante',
         updatedAt: serverTimestamp()
       });
     } catch (error) {
@@ -51,15 +53,24 @@ export default function RequesterDashboard({ activeTab, setActiveTab }: { active
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-extrabold font-headline text-white">Mis Solicitudes</h2>
-        <button 
-          onClick={() => setActiveTab('new-order')}
-          className="bg-primary text-on-primary px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all glow-primary"
-        >
-          Nueva Solicitud
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowHelp(true)}
+            className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
+            title="Ayuda"
+          >
+            <HelpCircle className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setActiveTab('new-order')}
+            className="bg-primary text-on-primary px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all glow-primary"
+          >
+            Nueva Solicitud
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -75,6 +86,28 @@ export default function RequesterDashboard({ activeTab, setActiveTab }: { active
           {orders.map(order => (
             <OrderCard key={order.id} order={order} onCancel={() => handleCancelOrder(order.id)} />
           ))}
+        </div>
+      )}
+
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-panel p-8 rounded-xl max-w-2xl w-full relative">
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-extrabold font-headline text-white mb-6 flex items-center gap-3">
+              <HelpCircle className="w-8 h-8 text-primary" />
+              Ayuda: Panel de Solicitante
+            </h2>
+            <div className="space-y-4 text-on-surface-variant text-sm leading-relaxed">
+              <p><strong>Crear Solicitud:</strong> Usa el botón "Nueva Solicitud" para pedir un retiro o envío. Puedes especificar si es urgente, la dirección (texto, link de Maps o GPS) y si requiere pago en efectivo.</p>
+              <p><strong>Seguimiento:</strong> En esta pantalla verás tus solicitudes. El estado cambiará automáticamente cuando un chofer acepte el viaje ("Asignado") y cuando esté en camino ("En tránsito").</p>
+              <p><strong>Cancelaciones:</strong> Puedes cancelar un pedido siempre y cuando siga en estado "Pendiente". Si un administrador cancela tu pedido, verás el motivo resaltado en rojo en la tarjeta del pedido.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -155,6 +188,12 @@ const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCa
           </div>
         )}
       </div>
+
+      {order.status === 'cancelled' && order.cancelReason && (
+        <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+          <strong>Motivo de cancelación:</strong> {order.cancelReason}
+        </div>
+      )}
     </div>
   );
 }

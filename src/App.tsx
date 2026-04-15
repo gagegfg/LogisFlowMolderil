@@ -4,11 +4,13 @@
  */
 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Dashboard from './Dashboard';
 import ApproveUser from './ApproveUser';
+import NotificationManager from './NotificationManager';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -19,7 +21,21 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <NotificationManager />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1e1e1e',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }
+        }}
+      />
+      <HashRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route 
@@ -39,7 +55,7 @@ export default function App() {
             } 
           />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   );
 }
