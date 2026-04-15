@@ -117,6 +117,8 @@ export default function RequesterDashboard({ activeTab, setActiveTab }: { active
 const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCancel }) => {
   const statusColors: Record<string, string> = {
     pending: 'text-tertiary border-tertiary/30 bg-tertiary/10',
+    pending_confirmation: 'text-warning border-warning/30 bg-warning/10',
+    planned: 'text-primary border-primary/30 bg-primary/10',
     assigned: 'text-primary border-primary/30 bg-primary/10',
     in_transit: 'text-primary border-primary/30 bg-primary/10',
     completed: 'text-[#4ade80] border-[#4ade80]/30 bg-[#4ade80]/10',
@@ -125,6 +127,8 @@ const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCa
 
   const statusLabels: Record<string, string> = {
     pending: 'Pendiente',
+    pending_confirmation: 'Requiere Confirmación',
+    planned: 'Planificado',
     assigned: 'Asignado',
     in_transit: 'En tránsito',
     completed: 'Completado',
@@ -136,13 +140,32 @@ const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCa
     delivery: 'Envío'
   };
 
+  const handleConfirmDate = async (accept: boolean) => {
+    try {
+      if (accept) {
+        await updateDoc(doc(db, 'orders', order.id), {
+          status: 'planned',
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await updateDoc(doc(db, 'orders', order.id), {
+          status: 'cancelled',
+          cancelReason: 'El solicitante rechazó la fecha propuesta',
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error("Error updating order", error);
+    }
+  };
+
   return (
     <div className="glass-panel p-6 rounded-xl relative overflow-hidden group">
       <div className="flex justify-between items-start mb-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status]}`}>
-              {statusLabels[order.status]}
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status] || statusColors.pending}`}>
+              {statusLabels[order.status] || order.status}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
               {typeLabels[order.type]}
@@ -166,28 +189,78 @@ const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCa
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <Calendar className="w-4 h-4 text-primary/70" />
-          <span>{order.date ? format(new Date(order.date), "dd 'de' MMM, HH:mm 'hs'", { locale: es }) : 'N/A'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <MapPin className="w-4 h-4 text-primary/70" />
-          <span className="truncate">{order.contactPerson}</span>
-        </div>
-        {order.requiresCashPayment && (
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-            <DollarSign className="w-4 h-4 text-primary/70" />
-            <span>{formatCurrency(order.cashAmount)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 text-sm text-on-surface-variant">
+            <Calendar className="w-4 h-4 text-primary/70 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70 mb-0.5">Ventana Solicitada</p>
+              <span>
+                {order.windowStart ? format(new Date(order.windowStart), "dd MMM, HH:mm", { locale: es }) : 'N/A'} 
+                {' - '}
+                {order.windowEnd ? format(new Date(order.windowEnd), "dd MMM, HH:mm", { locale: es }) : 'N/A'}
+              </span>
+            </div>
           </div>
-        )}
-        {order.documents && order.documents.length > 0 && (
           <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-            <FileText className="w-4 h-4 text-primary/70" />
-            <span>{order.documents.length} Docs</span>
+            <MapPin className="w-4 h-4 text-primary/70 shrink-0" />
+            <span className="truncate">{order.contactPerson}</span>
           </div>
-        )}
+        </div>
+        
+        <div className="space-y-3">
+          {order.requiresCashPayment && (
+            <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <DollarSign className="w-4 h-4 text-primary/70 shrink-0" />
+              <span>{formatCurrency(order.cashAmount)}</span>
+            </div>
+          )}
+          {order.documents && order.documents.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <FileText className="w-4 h-4 text-primary/70 shrink-0" />
+              <span>{order.documents.length} Docs</span>
+            </div>
+          )}
+          {order.observations && (
+            <div className="flex items-start gap-2 text-sm text-on-surface-variant">
+              <FileText className="w-4 h-4 text-primary/70 mt-0.5 shrink-0" />
+              <p className="line-clamp-2">{order.observations}</p>
+            </div>
+          )}
+        </div>
       </div>
+
+      {order.status === 'pending_confirmation' && order.plannedDate && (
+        <div className="mt-6 p-4 bg-warning/10 border border-warning/30 rounded-lg">
+          <h4 className="text-sm font-bold text-warning mb-2">Nueva fecha propuesta por el planificador</h4>
+          <p className="text-white text-sm mb-4">
+            {format(new Date(order.plannedDate), "EEEE dd 'de' MMMM, HH:mm 'hs'", { locale: es })}
+          </p>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => handleConfirmDate(true)}
+              className="bg-warning text-warning-container px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:brightness-110 transition-all"
+            >
+              Aceptar Fecha
+            </button>
+            <button 
+              onClick={() => handleConfirmDate(false)}
+              className="border border-error/50 text-error px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-error/10 transition-all"
+            >
+              Rechazar y Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {order.status === 'planned' && order.plannedDate && (
+        <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded-lg flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="text-sm text-white">
+            Planificado para: {format(new Date(order.plannedDate), "dd MMM, HH:mm", { locale: es })}
+          </span>
+        </div>
+      )}
 
       {order.status === 'cancelled' && order.cancelReason && (
         <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
@@ -205,11 +278,13 @@ export function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     type: 'pickup',
     priority: 'medium',
-    date: '',
+    windowStart: '',
+    windowEnd: '',
     location: '',
     mapsLink: '',
     coordinates: null as { lat: number, lng: number } | null,
     contactPerson: '',
+    observations: '',
     requiresCashPayment: false,
     cashAmount: ''
   });
@@ -246,9 +321,11 @@ export function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
         type: formData.type,
         status: 'pending',
         priority: formData.priority,
-        date: formData.date,
+        windowStart: formData.windowStart,
+        windowEnd: formData.windowEnd,
         location: formData.location,
         contactPerson: formData.contactPerson,
+        observations: formData.observations,
         requiresCashPayment: formData.requiresCashPayment,
         cashAmount: formData.requiresCashPayment ? Number(formData.cashAmount) : 0,
         documents: [], // Mocking documents for now
@@ -299,19 +376,41 @@ export function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Fecha y Hora</label>
-          <input 
-            type="datetime-local" 
-            required
-            className="w-full px-4 py-3 glass-input text-white rounded-lg"
-            value={formData.date}
-            onChange={e => setFormData({...formData, date: e.target.value})}
-          />
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Fecha Inicio (Desde)</label>
+            <input 
+              type="datetime-local" 
+              required
+              className="w-full px-4 py-3 glass-input text-white rounded-lg"
+              value={formData.windowStart}
+              onChange={e => setFormData({...formData, windowStart: e.target.value})}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Fecha Límite (Hasta)</label>
+            <input 
+              type="datetime-local" 
+              required
+              className="w-full px-4 py-3 glass-input text-white rounded-lg"
+              value={formData.windowEnd}
+              onChange={e => setFormData({...formData, windowEnd: e.target.value})}
+            />
+          </div>
         </div>
 
         <div className="space-y-4 pt-4 border-t border-outline-variant">
-          <h3 className="text-sm font-bold text-white">Ubicación</h3>
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-white">Ubicación</h3>
+            <a 
+              href="https://www.google.com/maps" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline"
+            >
+              <MapPin className="w-3 h-3" /> Buscar en Google Maps
+            </a>
+          </div>
           
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Dirección Exacta (Texto)</label>
@@ -349,16 +448,28 @@ export function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
 
-        <div className="space-y-2 pt-4 border-t border-outline-variant">
-          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Persona de Contacto</label>
-          <input 
-            type="text" 
-            required
-            placeholder="Juan Pérez (+54 11 1234-5678)"
-            className="w-full px-4 py-3 glass-input text-white rounded-lg"
-            value={formData.contactPerson}
-            onChange={e => setFormData({...formData, contactPerson: e.target.value})}
-          />
+        <div className="space-y-4 pt-4 border-t border-outline-variant">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Persona de Contacto</label>
+            <input 
+              type="text" 
+              required
+              placeholder="Juan Pérez (+54 11 1234-5678)"
+              className="w-full px-4 py-3 glass-input text-white rounded-lg"
+              value={formData.contactPerson}
+              onChange={e => setFormData({...formData, contactPerson: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Observaciones / Detalles</label>
+            <textarea 
+              placeholder="Detalles sobre la carga, horarios específicos, etc."
+              className="w-full px-4 py-3 glass-input text-white rounded-lg resize-none h-24"
+              value={formData.observations}
+              onChange={e => setFormData({...formData, observations: e.target.value})}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">

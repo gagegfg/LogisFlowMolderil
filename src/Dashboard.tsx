@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { logout } from './firebase';
-import { LogOut, LayoutDashboard, PlusCircle, List, Users, Settings, XCircle } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, List, Users, Settings, XCircle, Calendar } from 'lucide-react';
 import RequesterDashboard from './RequesterDashboard';
 import DriverDashboard from './DriverDashboard';
 import AdminDashboard from './AdminDashboard';
@@ -89,6 +89,13 @@ export default function Dashboard() {
 
           {profile.role === 'admin' && (
             <>
+              <button 
+                onClick={() => setActiveTab('planning')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'planning' ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-variant hover:text-white'}`}
+              >
+                <Calendar className="w-5 h-5" />
+                Planificación
+              </button>
               <button 
                 onClick={() => setActiveTab('users')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'users' ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-variant hover:text-white'}`}

@@ -20,15 +20,18 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
   useEffect(() => {
     if (!profile) return;
 
-    // Listen to pending orders
-    const qPending = query(
+    // Listen to available orders (planned but no driver, or pending if you want drivers to take them directly)
+    // Let's show 'planned' orders that don't have a driver assigned yet.
+    const qAvailable = query(
       collection(db, 'orders'),
-      where('status', '==', 'pending'),
+      where('status', '==', 'planned'),
       orderBy('createdAt', 'desc')
     );
 
-    const unsubPending = onSnapshot(qPending, (snapshot) => {
-      setAvailableOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const unsubAvailable = onSnapshot(qAvailable, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Filter out those that already have a driver assigned
+      setAvailableOrders(docs.filter((d: any) => !d.driverId));
     });
 
     // Listen to driver's assigned orders
@@ -44,7 +47,7 @@ export default function DriverDashboard({ activeTab }: { activeTab: string }) {
     });
 
     return () => {
-      unsubPending();
+      unsubAvailable();
       unsubAssigned();
     };
   }, [profile]);
@@ -170,6 +173,7 @@ const HelpModal = ({ onClose }: { onClose: () => void }) => (
 const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateStatus?: (status: string) => void, isAssigned: boolean }> = ({ order, onAccept, onUpdateStatus, isAssigned }) => {
   const statusColors: Record<string, string> = {
     pending: 'text-tertiary border-tertiary/30 bg-tertiary/10',
+    planned: 'text-primary border-primary/30 bg-primary/10',
     assigned: 'text-primary border-primary/30 bg-primary/10',
     in_transit: 'text-primary border-primary/30 bg-primary/10',
     completed: 'text-[#4ade80] border-[#4ade80]/30 bg-[#4ade80]/10',
@@ -177,6 +181,7 @@ const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateSta
 
   const statusLabels: Record<string, string> = {
     pending: 'Pendiente',
+    planned: 'Planificado',
     assigned: 'Asignado',
     in_transit: 'En tránsito',
     completed: 'Completado',
@@ -192,8 +197,8 @@ const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateSta
       <div className="flex justify-between items-start mb-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status]}`}>
-              {statusLabels[order.status]}
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status] || statusColors.pending}`}>
+              {statusLabels[order.status] || order.status}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
               {typeLabels[order.type]}
@@ -221,21 +226,45 @@ const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateSta
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 mb-6">
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <Calendar className="w-4 h-4 text-primary/70" />
-          <span>{order.date ? format(new Date(order.date), "dd 'de' MMM, HH:mm 'hs'", { locale: es }) : 'N/A'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <MapPin className="w-4 h-4 text-primary/70" />
-          <span className="truncate">{order.contactPerson}</span>
-        </div>
-        {order.requiresCashPayment && (
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-            <DollarSign className="w-4 h-4 text-primary/70" />
-            <span>{formatCurrency(order.cashAmount)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-6">
+        <div className="space-y-3">
+          {order.plannedDate && (
+            <div className="flex items-center gap-2 text-sm text-primary font-bold">
+              <Calendar className="w-4 h-4" />
+              <span>Planificado: {format(new Date(order.plannedDate), "dd MMM, HH:mm", { locale: es })}</span>
+            </div>
+          )}
+          <div className="flex items-start gap-2 text-sm text-on-surface-variant">
+            <Calendar className="w-4 h-4 text-primary/70 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70 mb-0.5">Ventana Solicitada</p>
+              <span>
+                {order.windowStart ? format(new Date(order.windowStart), "dd MMM, HH:mm", { locale: es }) : 'N/A'} 
+                {' - '}
+                {order.windowEnd ? format(new Date(order.windowEnd), "dd MMM, HH:mm", { locale: es }) : 'N/A'}
+              </span>
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+            <MapPin className="w-4 h-4 text-primary/70 shrink-0" />
+            <span className="truncate">{order.contactPerson}</span>
+          </div>
+          {order.requiresCashPayment && (
+            <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <DollarSign className="w-4 h-4 text-primary/70 shrink-0" />
+              <span>{formatCurrency(order.cashAmount)}</span>
+            </div>
+          )}
+          {order.observations && (
+            <div className="flex items-start gap-2 text-sm text-on-surface-variant">
+              <AlertCircle className="w-4 h-4 text-primary/70 mt-0.5 shrink-0" />
+              <p className="line-clamp-3">{order.observations}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="pt-4 border-t border-outline-variant flex justify-end gap-3">

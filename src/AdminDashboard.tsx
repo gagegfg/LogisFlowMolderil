@@ -55,7 +55,10 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
   };
 
   const filteredOrders = orders.filter(o => {
-    if (filterDate && !o.date.startsWith(filterDate)) return false;
+    if (filterDate) {
+      const orderDate = o.plannedDate || o.windowStart || o.date;
+      if (!orderDate || !orderDate.startsWith(filterDate)) return false;
+    }
     if (filterUser && o.requesterId !== filterUser) return false;
     if (filterPriority && o.priority !== filterPriority) return false;
     return true;
@@ -74,6 +77,10 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
 
   if (activeTab === 'settings') {
     return <AdminSettings />;
+  }
+
+  if (activeTab === 'planning') {
+    return <AdminPlanning orders={orders} users={users} />;
   }
 
   return (
@@ -234,6 +241,8 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
 
   const statusColors: Record<string, string> = {
     pending: 'text-tertiary border-tertiary/30 bg-tertiary/10',
+    pending_confirmation: 'text-warning border-warning/30 bg-warning/10',
+    planned: 'text-primary border-primary/30 bg-primary/10',
     assigned: 'text-primary border-primary/30 bg-primary/10',
     in_transit: 'text-primary border-primary/30 bg-primary/10',
     completed: 'text-[#4ade80] border-[#4ade80]/30 bg-[#4ade80]/10',
@@ -242,6 +251,8 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
 
   const statusLabels: Record<string, string> = {
     pending: 'Pendiente',
+    pending_confirmation: 'Requiere Confirmación',
+    planned: 'Planificado',
     assigned: 'Asignado',
     in_transit: 'En tránsito',
     completed: 'Completado',
@@ -264,8 +275,8 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
       <div className="glass-panel p-6 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between md:items-start gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status]}`}>
-              {statusLabels[order.status]}
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColors[order.status] || statusColors.pending}`}>
+              {statusLabels[order.status] || order.status}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
               {typeLabels[order.type]}
@@ -292,9 +303,16 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
           </div>
 
           <div className="flex flex-wrap gap-4 mt-3">
-            <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-              <Calendar className="w-3 h-3 text-primary/70" />
-              <span>{order.date ? format(new Date(order.date), "dd 'de' MMM, HH:mm 'hs'", { locale: es }) : 'N/A'}</span>
+            <div className="flex items-start gap-2 text-xs text-on-surface-variant">
+              <Calendar className="w-3 h-3 text-primary/70 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-primary/70 mb-0.5">Ventana Solicitada</p>
+                <span>
+                  {order.windowStart ? format(new Date(order.windowStart), "dd MMM, HH:mm", { locale: es }) : 'N/A'} 
+                  {' - '}
+                  {order.windowEnd ? format(new Date(order.windowEnd), "dd MMM, HH:mm", { locale: es }) : 'N/A'}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-on-surface-variant">
               <MapPin className="w-3 h-3 text-primary/70" />
@@ -306,8 +324,31 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
                 <span>{formatCurrency(order.cashAmount)}</span>
               </div>
             )}
+            {order.observations && (
+              <div className="flex items-start gap-2 text-xs text-on-surface-variant w-full mt-2">
+                <Package className="w-3 h-3 text-primary/70 mt-0.5 shrink-0" />
+                <p className="line-clamp-2">{order.observations}</p>
+              </div>
+            )}
           </div>
           
+          {(order.plannedDate || order.driverId) && (
+            <div className="mt-4 pt-3 border-t border-outline-variant flex flex-wrap gap-4 text-xs">
+              {order.plannedDate && (
+                <div className="flex items-center gap-1 text-primary">
+                  <Calendar className="w-3 h-3" />
+                  <span>Planificado: {format(new Date(order.plannedDate), "dd MMM, HH:mm", { locale: es })}</span>
+                </div>
+              )}
+              {order.driverId && (
+                <div className="flex items-center gap-1 text-tertiary">
+                  <Truck className="w-3 h-3" />
+                  <span>Chofer Asignado</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {order.status === 'cancelled' && order.cancelReason && (
             <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
               <strong>Motivo de cancelación:</strong> {order.cancelReason}
@@ -493,3 +534,146 @@ function AdminSettings() {
     </div>
   );
 }
+
+function AdminPlanning({ orders, users }: { orders: any[], users: any[] }) {
+  const pendingOrders = orders.filter(o => o.status === 'pending');
+  const drivers = users.filter(u => u.role === 'driver');
+
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [plannedDate, setPlannedDate] = useState('');
+  const [selectedDriver, setSelectedDriver] = useState('');
+
+  const handleProposeDate = async () => {
+    if (!selectedOrder || !plannedDate) return;
+    try {
+      await updateDoc(doc(db, 'orders', selectedOrder.id), {
+        status: 'pending_confirmation',
+        plannedDate,
+        driverId: selectedDriver || null,
+        updatedAt: serverTimestamp()
+      });
+      setSelectedOrder(null);
+      setPlannedDate('');
+      setSelectedDriver('');
+    } catch (error) {
+      console.error("Error proposing date", error);
+    }
+  };
+
+  const handleAssignDirectly = async () => {
+    if (!selectedOrder || !plannedDate) return;
+    try {
+      await updateDoc(doc(db, 'orders', selectedOrder.id), {
+        status: 'planned',
+        plannedDate,
+        driverId: selectedDriver || null,
+        updatedAt: serverTimestamp()
+      });
+      setSelectedOrder(null);
+      setPlannedDate('');
+      setSelectedDriver('');
+    } catch (error) {
+      console.error("Error assigning directly", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-extrabold font-headline text-white mb-6">Planificación de Pedidos</h2>
+      
+      {pendingOrders.length === 0 ? (
+        <div className="glass-panel p-12 text-center rounded-xl">
+          <Calendar className="w-12 h-12 text-on-surface-variant mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">No hay pedidos pendientes</h3>
+          <p className="text-on-surface-variant">Todos los pedidos han sido planificados o asignados.</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-white">Pedidos por Planificar ({pendingOrders.length})</h3>
+            <div className="space-y-3">
+              {pendingOrders.map(order => (
+                <div 
+                  key={order.id} 
+                  onClick={() => setSelectedOrder(order)}
+                  className={`glass-panel p-4 rounded-xl cursor-pointer transition-all ${selectedOrder?.id === order.id ? 'border-primary bg-primary/10' : 'hover:bg-surface-variant'}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm font-bold text-white">{order.location}</span>
+                    {order.priority === 'urgent' && <AlertCircle className="w-4 h-4 text-error" />}
+                  </div>
+                  <div className="text-xs text-on-surface-variant space-y-1">
+                    <p>Ventana: {order.windowStart ? format(new Date(order.windowStart), "dd MMM HH:mm", { locale: es }) : 'N/A'} - {order.windowEnd ? format(new Date(order.windowEnd), "dd MMM HH:mm", { locale: es }) : 'N/A'}</p>
+                    <p>Tipo: {order.type === 'pickup' ? 'Retiro' : 'Envío'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            {selectedOrder ? (
+              <div className="glass-panel p-6 rounded-xl sticky top-6">
+                <h3 className="text-lg font-bold text-white mb-4">Planificar Pedido</h3>
+                
+                <div className="space-y-4">
+                  <div className="p-3 bg-surface-container-highest rounded-lg text-sm text-on-surface-variant mb-4">
+                    <p><strong>Ubicación:</strong> {selectedOrder.location}</p>
+                    <p><strong>Ventana Solicitada:</strong><br/>Desde: {selectedOrder.windowStart ? format(new Date(selectedOrder.windowStart), "dd/MM/yyyy HH:mm") : 'N/A'}<br/>Hasta: {selectedOrder.windowEnd ? format(new Date(selectedOrder.windowEnd), "dd/MM/yyyy HH:mm") : 'N/A'}</p>
+                    {selectedOrder.observations && <p className="mt-2 text-white"><strong>Obs:</strong> {selectedOrder.observations}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Fecha y Hora Planificada</label>
+                    <input 
+                      type="datetime-local" 
+                      className="w-full px-4 py-3 glass-input text-white rounded-lg"
+                      value={plannedDate}
+                      onChange={e => setPlannedDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Asignar Chofer (Opcional)</label>
+                    <select 
+                      className="w-full px-4 py-3 glass-input text-white rounded-lg appearance-none"
+                      value={selectedDriver}
+                      onChange={e => setSelectedDriver(e.target.value)}
+                    >
+                      <option value="">Sin asignar (Choferes pueden tomarlo)</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.displayName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="pt-4 flex flex-col gap-3">
+                    <button 
+                      onClick={handleProposeDate}
+                      disabled={!plannedDate}
+                      className="w-full bg-warning text-warning-container py-3 rounded-lg font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+                    >
+                      Proponer Fecha al Solicitante
+                    </button>
+                    <button 
+                      onClick={handleAssignDirectly}
+                      disabled={!plannedDate}
+                      className="w-full border border-primary text-primary py-3 rounded-lg font-bold text-sm uppercase tracking-widest hover:bg-primary/10 transition-all disabled:opacity-50"
+                    >
+                      Asignar Directamente
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="glass-panel p-12 text-center rounded-xl border-dashed border-2 border-outline-variant">
+                <p className="text-on-surface-variant">Selecciona un pedido de la lista para planificarlo.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

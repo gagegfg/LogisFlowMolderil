@@ -51,12 +51,16 @@ service cloud.firestore {
     }
     
     function isValidOrder(data) {
-      return data.keys().hasAll(['requesterId', 'type', 'status', 'priority', 'date', 'location', 'contactPerson', 'requiresCashPayment', 'createdAt', 'updatedAt']) &&
+      return data.keys().hasAll(['requesterId', 'type', 'status', 'priority', 'location', 'contactPerson', 'requiresCashPayment', 'createdAt', 'updatedAt']) &&
              data.requesterId is string &&
              data.type in ['pickup', 'delivery'] &&
-             data.status in ['pending', 'assigned', 'in_transit', 'completed', 'cancelled'] &&
+             data.status in ['pending', 'pending_confirmation', 'planned', 'assigned', 'in_transit', 'completed', 'cancelled'] &&
              data.priority in ['low', 'medium', 'high', 'urgent'] &&
-             data.date is string &&
+             (!('date' in data) || data.date is string) &&
+             (!('windowStart' in data) || data.windowStart is string) &&
+             (!('windowEnd' in data) || data.windowEnd is string) &&
+             (!('plannedDate' in data) || data.plannedDate is string) &&
+             (!('observations' in data) || data.observations is string) &&
              data.location is string && data.location.size() > 0 && data.location.size() < 500 &&
              data.contactPerson is string && data.contactPerson.size() > 0 && data.contactPerson.size() < 200 &&
              data.requiresCashPayment is bool &&
@@ -115,7 +119,7 @@ service cloud.firestore {
                       (isRequester() && 
                        resource.data.requesterId == request.auth.uid && 
                        request.resource.data.requesterId == resource.data.requesterId &&
-                       resource.data.status == 'pending' &&
+                       (resource.data.status == 'pending' || resource.data.status == 'pending_confirmation') &&
                        request.resource.data.createdAt == resource.data.createdAt
                       )
                     );
