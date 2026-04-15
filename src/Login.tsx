@@ -5,16 +5,22 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     setLoading(true);
+    setErrorMsg('');
     try {
       await loginWithGoogle();
-      navigate('/');
-    } catch (error) {
+      // Nota: con signInWithRedirect la página se recargará, por lo que navigate('/') puede no llegar a ejecutarse.
+    } catch (error: any) {
       console.error("Login failed", error);
-    } finally {
+      if (error?.code === 'auth/unauthorized-domain') {
+        setErrorMsg('Dominio no autorizado. Debes agregar "gagegfg.github.io" en la consola de Firebase (Authentication > Settings > Authorized domains).');
+      } else {
+        setErrorMsg(error?.message || 'Ocurrió un error al intentar iniciar sesión.');
+      }
       setLoading(false);
     }
   };
@@ -33,6 +39,11 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
+          {errorMsg && (
+            <div className="p-4 bg-error/10 border border-error/30 rounded-lg text-sm text-error font-medium">
+              {errorMsg}
+            </div>
+          )}
           <button 
             onClick={handleLogin}
             disabled={loading}
