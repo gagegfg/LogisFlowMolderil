@@ -198,7 +198,7 @@ const OrderCard: React.FC<{ order: any, onCancel: () => void }> = ({ order, onCa
   );
 }
 
-function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
+export function NewOrderForm({ onSuccess }: { onSuccess: () => void }) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [locationStatus, setLocationStatus] = useState('');

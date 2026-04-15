@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              role: isBootstrapAdmin ? 'admin' : 'pending',
+              role: isBootstrapAdmin ? 'admin' : 'requester',
               displayName: firebaseUser.displayName || 'Nuevo Usuario',
               createdAt: new Date().toISOString()
             };

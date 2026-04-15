@@ -72,54 +72,24 @@ export default function Login() {
       </section>
 
       {/* Right Side: Visual/Editorial Hero */}
-      <section className="hidden md:block relative overflow-hidden">
-        {/* Background Image */}
+      <section className="hidden md:block relative overflow-hidden bg-[#060e20]">
+        {/* Background Image - Portal/Logistics Theme */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1586528116311-ad8ed7c50a63?q=80&w=2070&auto=format&fit=crop" 
-            alt="Global Logistics Hub" 
-            className="w-full h-full object-cover grayscale brightness-[0.4] contrast-[1.1]" 
+            src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=2070&auto=format&fit=crop" 
+            alt="Logistics Portal" 
+            className="w-full h-full object-cover grayscale-[0.2] brightness-[0.8] contrast-[1.1] hover:scale-105 transition-transform duration-[10000ms] ease-out" 
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-[#060e20]/60 mix-blend-multiply"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent opacity-80"></div>
-        </div>
-
-        {/* Content Overlay */}
-        <div className="relative z-10 h-full flex flex-col justify-end p-12">
-          <div className="glass-panel p-8 rounded-lg">
-            <div className="mb-6 flex gap-3">
-              <div className="px-3 py-1 bg-primary/20 border border-primary/30 rounded-full">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Ops en Vivo</span>
-              </div>
-              <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-white/60">v2.4.0</span>
-              </div>
-            </div>
-            <h2 className="text-4xl font-extrabold font-headline leading-tight text-white mb-4">
-              Seguimiento preciso en cada kilómetro.
-            </h2>
-            <p className="text-on-surface-variant font-medium leading-relaxed max-w-sm">
-              Nuestro flujo orquestado asegura que tu flota siempre esté en movimiento, tu manifiesto siempre sea preciso y tus datos siempre sean accionables.
-            </p>
-            
-            {/* Stats / Bento highlight */}
-            <div className="mt-10 grid grid-cols-2 gap-4">
-              <div className="glass-input rounded-lg p-4">
-                <p className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] mb-1">Envíos Globales</p>
-                <p className="text-2xl font-extrabold text-white">1.2M+</p>
-              </div>
-              <div className="glass-input rounded-lg p-4">
-                <p className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] mb-1">Tasa de Puntualidad</p>
-                <p className="text-2xl font-extrabold text-white">99.8%</p>
-              </div>
-            </div>
-          </div>
+          {/* Subtle gradient overlays for depth */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#060e20] via-transparent to-transparent opacity-90"></div>
+          <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#060e20] via-transparent to-transparent opacity-60"></div>
         </div>
         
         {/* Abstract Decoration */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 -left-32 w-48 h-48 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-1/2 -left-32 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
       </section>
     </main>
   );

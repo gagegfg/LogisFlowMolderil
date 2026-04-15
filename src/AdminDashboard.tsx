@@ -3,7 +3,8 @@ import { db } from './firebase';
 import { collection, query, onSnapshot, orderBy, updateDoc, doc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck, Filter, HelpCircle, X } from 'lucide-react';
+import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck, Filter, HelpCircle, X, Plus } from 'lucide-react';
+import { NewOrderForm } from './RequesterDashboard';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
@@ -19,6 +20,7 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
   const [filterUser, setFilterUser] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [showHelp, setShowHelp] = useState(false);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
   useEffect(() => {
     const q = query(
@@ -78,13 +80,21 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
     <div className="space-y-8 relative">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-extrabold font-headline text-white">Control Global de Flota</h2>
-        <button 
-          onClick={() => setShowHelp(true)}
-          className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
-          title="Ayuda"
-        >
-          <HelpCircle className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowHelp(true)}
+            className="p-2 rounded-full bg-surface-variant text-on-surface-variant hover:text-white hover:bg-surface-container-highest transition-colors"
+            title="Ayuda"
+          >
+            <HelpCircle className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setIsCreatingOrder(true)}
+            className="bg-primary text-on-primary px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all glow-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Nuevo Pedido
+          </button>
+        </div>
       </div>
       
       {/* Filters */}
@@ -197,6 +207,20 @@ export default function AdminDashboard({ activeTab }: { activeTab: string }) {
               <p><strong>Cancelación de Pedidos:</strong> Si necesitas anular o rechazar un pedido, haz clic en el botón "Cancelar". Se te pedirá que ingreses un motivo. Este motivo será visible inmediatamente para el usuario solicitante en su panel.</p>
               <p><strong>Geolocalización:</strong> Si el solicitante adjuntó coordenadas o un enlace de Google Maps, verás los botones correspondientes en la tarjeta del pedido para abrir la ubicación exacta.</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isCreatingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto pt-24 pb-12">
+          <div className="w-full max-w-2xl relative">
+            <button 
+              onClick={() => setIsCreatingOrder(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-white z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <NewOrderForm onSuccess={() => setIsCreatingOrder(false)} />
           </div>
         </div>
       )}
