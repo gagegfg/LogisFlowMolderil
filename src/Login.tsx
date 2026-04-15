@@ -13,11 +13,13 @@ export default function Login() {
     setErrorMsg('');
     try {
       await loginWithGoogle();
-      // Nota: con signInWithRedirect la página se recargará, por lo que navigate('/') puede no llegar a ejecutarse.
+      navigate('/');
     } catch (error: any) {
       console.error("Login failed", error);
       if (error?.code === 'auth/unauthorized-domain') {
         setErrorMsg('Dominio no autorizado. Debes agregar "gagegfg.github.io" en la consola de Firebase (Authentication > Settings > Authorized domains).');
+      } else if (error?.code === 'auth/popup-closed-by-user') {
+        setErrorMsg('La ventana de inicio de sesión fue cerrada antes de terminar.');
       } else {
         setErrorMsg(error?.message || 'Ocurrió un error al intentar iniciar sesión.');
       }
