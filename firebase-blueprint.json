@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the LogiFlow application.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "driver", "requester"] },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A logistics order for pickup or delivery.",
+      "type": "object",
+      "properties": {
+        "requesterId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "type": { "type": "string", "enum": ["pickup", "delivery"] },
+        "status": { "type": "string", "enum": ["pending", "assigned", "in_transit", "completed", "cancelled"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "requiresCashPayment": { "type": "boolean" },
+        "cashAmount": { "type": "number" },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["requesterId", "type", "status", "priority", "date", "location", "contactPerson", "requiresCashPayment", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores logistics orders."
+    }
+  }
+}

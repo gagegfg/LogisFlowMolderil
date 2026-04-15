@@ -1,0 +1,8 @@
+{
+  "name": "LogiFlow",
+  "description": "Sistema de gestión logística interna",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

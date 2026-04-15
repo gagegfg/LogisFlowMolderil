@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc == null ? null : userDoc.data;
+    }
+    
+    function isAdmin() {
+      let data = getUserData();
+      return isAuthenticated() && 
+        ((data != null && data.role == 'admin') || 
+         (request.auth.token.email == "gagegfg@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function isDriver() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && data.role == 'driver';
+    }
+    
+    function isRequester() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && data.role == 'requester';
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt', 'displayName']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'driver', 'requester', 'pending', 'rejected'] &&
+             data.displayName is string &&
+             data.createdAt is string;
+    }
+    
+    function isValidOrder(data) {
+      return data.keys().hasAll(['requesterId', 'type', 'status', 'priority', 'date', 'location', 'contactPerson', 'requiresCashPayment', 'createdAt', 'updatedAt']) &&
+             data.requesterId is string &&
+             data.type in ['pickup', 'delivery'] &&
+             data.status in ['pending', 'assigned', 'in_transit', 'completed', 'cancelled'] &&
+             data.priority in ['low', 'medium', 'high', 'urgent'] &&
+             data.date is string &&
+             data.location is string && data.location.size() > 0 && data.location.size() < 500 &&
+             data.contactPerson is string && data.contactPerson.size() > 0 && data.contactPerson.size() < 200 &&
+             data.requiresCashPayment is bool &&
+             (!('cashAmount' in data) || data.cashAmount is number) &&
+             (!('driverId' in data) || data.driverId is string) &&
+             (!('documents' in data) || data.documents is list) &&
+             (!('mapsLink' in data) || data.mapsLink is string) &&
+             (!('coordinates' in data) || (data.coordinates is map && data.coordinates.lat is number && data.coordinates.lng is number)) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || isDriver() || isRequester();
+      
+      allow create: if isAuthenticated() && 
+                    isOwner(userId) && 
+                    isValidUser(request.resource.data) && 
+                    (request.resource.data.role == 'requester' || isAdmin());
+                    
+      allow update: if isAuthenticated() && 
+                    isValidUser(request.resource.data) && 
+                    (
+                      isAdmin() || 
+                      (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.uid == resource.data.uid)
+                    );
+                    
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (isAdmin() || isDriver() || resource.data.requesterId == request.auth.uid);
+      
+      allow create: if isAuthenticated() && 
+                    isValidOrder(request.resource.data) && 
+                    (isAdmin() || (isRequester() && request.resource.data.requesterId == request.auth.uid));
+                    
+      allow update: if isAuthenticated() && 
+                    isValidOrder(request.resource.data) && 
+                    (
+                      isAdmin() ||
+                      (isDriver() && 
+                       request.resource.data.requesterId == resource.data.requesterId &&
+                       request.resource.data.createdAt == resource.data.createdAt
+                      ) ||
+                      (isRequester() && 
+                       resource.data.requesterId == request.auth.uid && 
+                       request.resource.data.requesterId == resource.data.requesterId &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.createdAt == resource.data.createdAt
+                      )
+                    );
+                    
+      allow delete: if isAdmin();
+    }
+  }
+}

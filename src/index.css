@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-primary: #8ff5ff;
+  --color-primary-container: #00eefc;
+  --color-on-primary: #005d63;
+  
+  --color-surface: #060e20;
+  --color-on-surface: #dee5ff;
+  --color-surface-container-low: #0a1329;
+  --color-surface-container-high: #141f38;
+  --color-surface-container-highest: #1e2a47;
+  
+  --color-surface-variant: rgba(30, 42, 71, 0.6);
+  --color-on-surface-variant: #a3aac4;
+  
+  --color-outline-variant: rgba(64, 72, 93, 0.15);
+  
+  --color-tertiary: #65afff;
+  --color-error: #ff4d4d;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased;
+    background: radial-gradient(circle at top right, #0a1329 0%, #060e20 100%);
+    min-height: 100vh;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-surface-variant backdrop-blur-xl border border-outline-variant;
+  }
+  
+  .glass-input {
+    @apply bg-surface-container-highest border border-outline-variant focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all;
+  }
+  
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(143, 245, 255, 0.2);
+  }
+  
+  .glow-text {
+    text-shadow: 0 0 10px rgba(143, 245, 255, 0.4);
+  }
+  
+  .ambient-shadow {
+    box-shadow: 0px 20px 40px rgba(0, 0, 0, 0.4);
+  }
+  
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary-container;
+  }
+}
