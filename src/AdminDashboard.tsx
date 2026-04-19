@@ -3,7 +3,7 @@ import { db } from './firebase';
 import { collection, query, onSnapshot, orderBy, updateDoc, doc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck, Filter, HelpCircle, X, Plus } from 'lucide-react';
+import { AlertCircle, Calendar, MapPin, DollarSign, Package, Navigation, Users, UserCheck, Shield, Truck, Filter, HelpCircle, X, Plus, MessageCircle } from 'lucide-react';
 import { NewOrderForm } from './RequesterDashboard';
 
 const formatCurrency = (amount: number) => {
@@ -298,6 +298,16 @@ const AdminOrderCard: React.FC<{ order: any, onCancel: (id: string, reason: stri
             {order.coordinates && (
               <a href={`https://www.google.com/maps/search/?api=1&query=${order.coordinates.lat},${order.coordinates.lng}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
                 <MapPin className="w-3 h-3" /> Coordenadas GPS
+              </a>
+            )}
+            {order.contactPerson && (
+              <a 
+                href={`https://wa.me/${order.contactPerson.replace(/\D/g, '')}`} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="flex items-center gap-1 text-xs font-bold text-[#25D366] hover:underline"
+              >
+                <MessageCircle className="w-3 h-3" /> Contactar por WhatsApp
               </a>
             )}
           </div>

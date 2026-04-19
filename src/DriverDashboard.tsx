@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp, 
 import { useAuth } from './AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MapPin, Calendar, DollarSign, Navigation, AlertCircle, HelpCircle, X } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, Navigation, AlertCircle, HelpCircle, X, MessageCircle } from 'lucide-react';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
@@ -220,6 +220,16 @@ const DriverOrderCard: React.FC<{ order: any, onAccept?: () => void, onUpdateSta
             {order.coordinates && (
               <a href={`https://www.google.com/maps/search/?api=1&query=${order.coordinates.lat},${order.coordinates.lng}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline">
                 <MapPin className="w-3 h-3" /> Coordenadas GPS
+              </a>
+            )}
+            {order.contactPerson && (
+              <a 
+                href={`https://wa.me/${order.contactPerson.replace(/\D/g, '')}`} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="flex items-center gap-1 text-xs font-bold text-[#25D366] hover:underline"
+              >
+                <MessageCircle className="w-3 h-3" /> Contactar por WhatsApp
               </a>
             )}
           </div>
